@@ -6,14 +6,27 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="http://yoursite.com">
-  <title>Archives | hejiajie的博客</title>
+  <title>redis数据结构介绍 | hejiajie的博客</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="hejiajie的博客">
-<meta property="og:url" content="http://yoursite.com/archives/index.html">
+  <meta name="description" content="redis在底层实现了6种不同的数据结构，以此作为上层数据类型的底层实现。它们分别为:SDS、链表、跳跃表、字典、整数集合、压缩列表
+下面就分别介绍每种数据结构的定义
+SDS 简单动态字符串(Simple Dynamic String)12345678struct sdshdr &amp;#123;	//SDS保存的字符串的长度，buf数组已经使用的字符的数量	int len;	//buf数组未使用的字符">
+<meta property="og:type" content="article">
+<meta property="og:title" content="redis数据结构介绍">
+<meta property="og:url" content="http://yoursite.com/2017/11/23/redis数据结构介绍/index.html">
 <meta property="og:site_name" content="hejiajie的博客">
+<meta property="og:description" content="redis在底层实现了6种不同的数据结构，以此作为上层数据类型的底层实现。它们分别为:SDS、链表、跳跃表、字典、整数集合、压缩列表
+下面就分别介绍每种数据结构的定义
+SDS 简单动态字符串(Simple Dynamic String)12345678struct sdshdr &amp;#123;	//SDS保存的字符串的长度，buf数组已经使用的字符的数量	int len;	//buf数组未使用的字符">
+<meta property="og:image" content="http://oo78a77tv.bkt.clouddn.com/17-11-22/88176795.jpg">
+<meta property="og:image" content="http://oo78a77tv.bkt.clouddn.com/17-11-22/69337060.jpg">
+<meta property="og:updated_time" content="2017-11-23T02:48:41.976Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="hejiajie的博客">
+<meta name="twitter:title" content="redis数据结构介绍">
+<meta name="twitter:description" content="redis在底层实现了6种不同的数据结构，以此作为上层数据类型的底层实现。它们分别为:SDS、链表、跳跃表、字典、整数集合、压缩列表
+下面就分别介绍每种数据结构的定义
+SDS 简单动态字符串(Simple Dynamic String)12345678struct sdshdr &amp;#123;	//SDS保存的字符串的长度，buf数组已经使用的字符的数量	int len;	//buf数组未使用的字符">
+<meta name="twitter:image" content="http://oo78a77tv.bkt.clouddn.com/17-11-22/88176795.jpg">
   
     <link rel="alternative" href="/atom.xml" title="hejiajie的博客" type="application/atom+xml">
   
@@ -153,36 +166,119 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-redis数据结构介绍" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2017" class="archive-year">2017</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/11/23/redis数据结构介绍/" class="archive-article-date">
-  	<time datetime="2017-11-22T16:57:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-23</time>
-</a>
-        </div>
-    	 
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/11/23/redis数据结构介绍/">redis数据结构介绍</a>
+    <h1 class="article-title" itemprop="name">
+      redis数据结构介绍
     </h1>
   
 
-        <div class="article-info info-on-right">
-          
+        
+        <a href="/2017/11/23/redis数据结构介绍/" class="archive-article-date">
+  	<time datetime="2017-11-22T16:57:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-23</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>redis在底层实现了6种不同的数据结构，以此作为上层数据类型的底层实现。它们分别为:SDS、链表、跳跃表、字典、整数集合、压缩列表</p>
+<p>下面就分别介绍每种数据结构的定义</p>
+<h4 id="SDS-简单动态字符串-Simple-Dynamic-String"><a href="#SDS-简单动态字符串-Simple-Dynamic-String" class="headerlink" title="SDS 简单动态字符串(Simple Dynamic String)"></a>SDS 简单动态字符串(Simple Dynamic String)</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">struct sdshdr &#123;</div><div class="line">	//SDS保存的字符串的长度，buf数组已经使用的字符的数量</div><div class="line">	int len;</div><div class="line">	//buf数组未使用的字符数量</div><div class="line">	int free;</div><div class="line">	//字节数组，保存字符串</div><div class="line">	char buf[];</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>SDS遵循C字符串的以空字符’\0’结尾，但是这个字符不包含在len属性里面，遵循这一惯例那么SDS可以直接重用一部分C字符串函数库里面的函数。</p>
+<p>SDS和C字符串的对比：</p>
+<p>  要获取C字符串的长度必须遍历整个字符串，而SDS在len属性中记录了长度，时间复杂度是O(1)</p>
+<p>  C字符串容易造成缓冲区溢出。在对字符串进行一些诸如拼接操作的时候，如果目标buf的长度不够那么就容易产生缓冲区溢出，因此程序员必须自己去申请分配必要的长度空间。而SDS在进行修改的时候会先检查SDS的空间是否满足修改所需的要求，因此使用SDS就不需要程序员手动的修改SDS空间大小，也不用担心出现缓冲区溢出的问题。</p>
+<p>  SDS数据结构为字符串预留一部分的未使用空间(类似于STL中的vector)，这些预留空间在下次修改SDS内容的时候会优先使用，减少像C字符串这种每次修改都要进行内存重分配的情况。分配策略是：如果SDS的长度小于1MB那么程序会分配额外相等的空间，也就是len和free属性相等；而如果SDS的内容长度大于1MB那么程序就分配1MB的free空间</p>
+<p><strong>注意，这里所有分配的空间长度都未算上最后的一个空字符，这个是redis自己处理的，所以真正分配的空间大小实际上都是需要加上1Byte的</strong></p>
+<p>对于SDS内容长度减少的情况，空间大小也不会立即被释放掉，因为之后可能会被使用，采用的是惰性释放资源的策略。</p>
+<p>SDS的所有API都是二进制安全的，所有SDS API都是已处理二进制的方式来处理SDS存放在buf数组里的数据。<br>但是由于SDS也是和C字符串一样末尾使用空字符进行结尾，因此也是可以重用一部分的<string.h>库中的函数的。</string.h></p>
+<p>一些SDS支持的API可以查看 <code>redis/src/sds.h</code> 文件</p>
+<h4 id="链表"><a href="#链表" class="headerlink" title="链表"></a>链表</h4><p>链表和链表节点的实现</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">typedef struct listNode &#123;</div><div class="line">	struct listNode *prev;</div><div class="line">	struct listNode *next;</div><div class="line">	void *value;</div><div class="line">&#125;listNode;</div><div class="line"></div><div class="line">typedef struct list &#123;</div><div class="line">	//表头节点</div><div class="line">	listNode *head;</div><div class="line">	//表尾节点</div><div class="line">	listNode *tail;</div><div class="line">	unsigned long len;</div><div class="line">	void *(*dup)(void *ptr);</div><div class="line">	void (*free)(void *ptr);</div><div class="line">	int (*match)(void *ptr, void *key);</div><div class="line">&#125;list;</div></pre></td></tr></table></figure>
+<p>多个listNode结构组成链表，而list结构可以持有该链表，里面包含了链表头尾，节点的数量，以及节点所需的类型特定函数，这为支持多态链表做好准备。</p>
+<p>链表支持的API可以查看 <code>redis/src/adlist.h</code>进行查看</p>
+<h4 id="字典"><a href="#字典" class="headerlink" title="字典"></a>字典</h4><p>redis的字典使用哈希表作为底层实现，</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">typedef struct dictht &#123;</div><div class="line">	//哈希表数组</div><div class="line">	dictEntry **table;</div><div class="line">	//哈希表大小</div><div class="line">	unsigned long size;</div><div class="line">	//大小掩码，用于计算哈希索引</div><div class="line">	unsigned long sizemask;</div><div class="line">	//已有的节点数量</div><div class="line">	unsigned long used;</div><div class="line">&#125; dictht;</div><div class="line"></div><div class="line">typedef struct dictEntry &#123;</div><div class="line">	//键</div><div class="line">	void *key;</div><div class="line">	//值</div><div class="line">	union &#123;</div><div class="line">		void *val;</div><div class="line">		uint64_t u64;</div><div class="line">		int64_t s64;</div><div class="line">	&#125; v;</div><div class="line">	struct dictEntry *next;</div><div class="line">&#125; dictEntry;</div></pre></td></tr></table></figure>
+<p>上面的代码中<code>dictht</code>实际上就是一个哈希表，table是一个保存dictEntry指针的数组，size是数组的大小，sizemask是用来计算数组索引的掩码，而used则表示当前数组已被使用的数量。</p>
+<p>而对于table中的元素指向的是dictEntry结构，这就是一个哈希节点，里面才是保存真正的键值对，key保存了键，而值是一个union结构，可以是一个指针，也可以是uint64_t整数或者int64_t整数。如果有相同的哈希节点被索引到table数组的同一个索引位置的话，那么这些节点就通过next指针链接起来，以链地址法来解决哈希的冲突问题。</p>
+<p>而redis的字典的结构则为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">typedef struct dict &#123;</div><div class="line">	//类型特定函数</div><div class="line">	dictType *type;</div><div class="line">	//私有数据</div><div class="line">	void *privdata;</div><div class="line">	//哈希表</div><div class="line">	dictht ht[2];</div><div class="line">	//rehash索引</div><div class="line">	//当rehash不在进行时，值为-1</div><div class="line">	int trehashidx;</div><div class="line">&#125; dict;</div></pre></td></tr></table></figure>
+<p>type和privdata属性是针对不同类型的键值对，为创建多态字典设置的。type属性是一个指向dictType结构的指针，每个dictType结构保存了一簇用于操作特定类型键值对的函数，redis会为用途不同的字典设置不同的类型特定函数；而privdata属性则保存了需要传给那些类型特定函数的可选参数。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">typedef struct dictType &#123;</div><div class="line">	unsigned int (*hashFunction)(const void *key);</div><div class="line">	void *(*keyDup)(void *privdata, const void *key);</div><div class="line">	void *(*valDup)(void *privdata, const void *obj);</div><div class="line">	int (*keyCompare) (void *privdata, const void *key1, const void *key2);</div><div class="line">	void (*keyDestructior)(void *privdata, void *key);</div><div class="line">	void (*valDestructor)(void *privdata, void *obj);</div><div class="line">&#125;dictType;</div></pre></td></tr></table></figure>
+<p>ht属性是一个包含两个项的数组，数组中的每个项都是一个dictht哈希表，通常字典都是使用dictht[0],ht[1]只会在对ht[0]进行rehash的时候使用。</p>
+<p>rehashidx记录了当前rehash的进度，如果为-1则表示当前不在rehash。</p>
+<p>普通的一个dict大致结构如下图所示:</p>
+<p><img src="http://oo78a77tv.bkt.clouddn.com/17-11-22/88176795.jpg" alt=""></p>
+<p>程序要插入新的键值对的时候，就会根据key的hashFunction产生has值，然后计算出在tables中应该存放的index。如果有多个键值对产生的index是一样的，通过链地址法来解决，即通过把所有的dictEntry通过next指针串联起来。</p>
+<p>下面我们主要说下rehash的过程:<br>哈希表的键值对会随着使用越来越多，为了让哈希表的负载因子维持在一个合理的范围，就需要在哈希表的键值对数量太多或者太少的时候进行相应的扩展和收缩。这就是rehash。但是我们要知道通常redis保存大量的数据，那么在做rehash的时候就需要很长的时间，在这段时间内可能会导致redis停止服务。因此为了避免rehash对服务器性能造成影响，服务器不是一次性将ht[0]里面的所有键值对全部rehash到ht[1]，而是分多次、渐进式地将ht[0]里面的键值对慢慢地rehash到[1]中。详细步骤如下：</p>
+<ol>
+<li>根据一定策略为ht[1]分配空间，让字典同时持有ht[0]和ht[1]两个哈希表，(一定策略是指：如果是扩展哈希表，那么就找到第一个大于等于used*2的2的n次方的整数，如果是收缩的则是第一个大于等于used的2的n次方的整数)</li>
+<li>在字典中维持一个字典计算器变量rehashidx,并将它的值设置为0，表示rehash工作正式开始</li>
+<li>在rehash期间，每次对字典的CRUD操作，程序除了执行指定的命令操作外，还会顺带将ht[0]在当前rehasidx索引上的键值对rehash到ht[1],这个过程完成后，rehashidx自增1</li>
+<li>随着字典的不断执行，最终ht[0]上的所有键值对都会被rehash到ht[1]上，然后再将rehashidx设置为-1，表示rehash操作完成</li>
+</ol>
+<p>这种做法的好处就是采取分而治之的方式，将rehash的工作量分摊到每次CRUD的操作上。</p>
+<p>字典是哈希键的底层实现</p>
+<h4 id="跳跃表"><a href="#跳跃表" class="headerlink" title="跳跃表"></a>跳跃表</h4><p>跳跃表支持平均O(logn)、最坏O(N)复杂度的节点查找，还可以通过顺序性操作来批量处理节点。</p>
+<p><strong>Redis使用跳跃表作为有序集合键的底层实现之一。</strong> 如果一个有序集合包含的元素数量比较多，又或者有序集合中元素的成员是比较长的字符串的时候，redis就会使用跳跃表来作为有序集合键的底层实现。</p>
+<p>Redis只在两个地方用到了跳跃表，一个是实现有序集合键，另一个是在集群节点中用作内部数据结构。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">typedef struct zskiplistNode &#123;</div><div class="line">	robj *obj;</div><div class="line">	double score;</div><div class="line">	struct zskipNode *backward;</div><div class="line">	struct zskipLevel &#123;</div><div class="line">		struct zskipNode *forward;</div><div class="line">		unsigned int span;</div><div class="line">	&#125; level[];</div><div class="line">&#125; zskiplistNode;</div><div class="line"></div><div class="line">typedef struct zskiplist &#123;</div><div class="line">	struct zskipNode *header, *tail;</div><div class="line">	unsigned long length;</div><div class="line">	int level;</div><div class="line">&#125; zskiplist;</div></pre></td></tr></table></figure>
+<p>比如可以看下图:</p>
+<p><img src="http://oo78a77tv.bkt.clouddn.com/17-11-22/69337060.jpg" alt=""></p>
+<p>图中最左边的就是zskiplist结构体，右边的四个就是zskiplistNode结构，当然第一个是表头节点，不存储实际的值，这个图中一共最多有5层，每一层都是通过zskiplistNode.level来表示的，它有指向下一个节点的指针和当前跨度来组成。每个zskiplistNode还保存有backward指针指向前一个节点，以及score成员。</p>
+<p>一般来说，层次越多访问其他节点的速度就越快。</p>
+<h3 id="整数集合"><a href="#整数集合" class="headerlink" title="整数集合"></a>整数集合</h3><p>整数集合可以保存类型为uint16_t, int32_t, int64_t的整数值。</p>
+<p><strong>整数集合是集合键的底层实现之一</strong> 当一个集合只包含整数值元素，并且这个集合的元素数量不多时，redis就会使用整数集合作为集合键的底层实现。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">typedef struct intset &#123;</div><div class="line">	uint32_t encoding;</div><div class="line">	uint32_t length;</div><div class="line">	int8_t contents[];</div><div class="line">&#125; intset;</div></pre></td></tr></table></figure>
+<p>contents数组的真正类型取决于encoding属性的值</p>
+<ol>
+<li>如果encoding属性的值为INTSET_ENC_INT16的话 那么contents就是一个int16_t类型的数组</li>
+<li>如果encoding属性的值为INTSET_ENC_INT32的话 那么contents就是一个int32_t类型的数组</li>
+<li>如果encoding属性的值为INTSET_ENC_INT64的话 那么contents就是一个int64_t类型的数组</li>
+</ol>
+<p>每当我们要将一个新元素添加到整数集合里面，并且新元素的类型比整数集合现有的类型要长的时候，整数集合需要先进行升级，然后才能将新元素添加到整数集合里面。</p>
+<p>提升灵活性，节约内存。可以同时支持三种类型的数据类型存储，而又可以确保升级只是在有需要的时候进行。</p>
+<h4 id="压缩列表"><a href="#压缩列表" class="headerlink" title="压缩列表"></a>压缩列表</h4><p><strong>压缩列表时列表键和哈希键的底层实现之一</strong>。当一个列表键只包含少量列表项，并且每个列表项要么就是小整数值，要么就是长度比较短的字符串，那么redis就会使用压缩列表做列表键的底层实现。</p>
+<p>一个压缩列表可以包含人意多个节点, 每个节点可以保存一个字节数组或者一个整数值</p>
+<p>ziplist的结构如下：</p>
+<p>   zlbytes | zltail | zllen | entry1 | entry2 | … | entryN | zlend</p>
+<p>而对于每个entry的结构:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">typedef struct zlentry &#123;</div><div class="line">	unsigned int prevrawlensize, prevrawlen; //前置节点的长度，编码prevrawsize所需的字节大小</div><div class="line">	unsigned int lensize, len; //当前节点的长度，编码len长度的字节大小</div><div class="line">	unsigned int headersize; //当前节点header大小，等于prevrawlensize+lensize</div><div class="line">	unsigned char encoding; //当前节点值所使用的编码类型</div><div class="line">	unsigned char *p; //指向当前节点的指针</div><div class="line">&#125; zlentry;</div></pre></td></tr></table></figure>
+<p>对于压缩列表 ，会存在 “连锁更新”的问题</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
@@ -194,19 +290,96 @@
 		</ul>
 	</div>
 
-          
+      
 
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//pan.baidu.com/share/qrcode?url=http://yoursite.com/2017/11/23/redis数据结构介绍/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
-  
-  
-    </div></section>
+
   
 
-    
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+  
+  
+  
+
+  
+
+  
+
+  
 
 
           </div>
@@ -229,8 +402,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,
