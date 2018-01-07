@@ -6,11 +6,11 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="http://yoursite.com">
-  <title>hejiajie的博客</title>
+  <title>Tag: golang channel | hejiajie的博客</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta property="og:type" content="website">
 <meta property="og:title" content="hejiajie的博客">
-<meta property="og:url" content="http://yoursite.com/index.html">
+<meta property="og:url" content="http://yoursite.com/tags/golang-channel/index.html">
 <meta property="og:site_name" content="hejiajie的博客">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="hejiajie的博客">
@@ -155,89 +155,34 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-channel" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
+  
     
-      <header class="article-header">
-        
+    
+      
+      
+      <section class="archives-wrap">
+        <div class="archive-year-wrap">
+          <a href="/archives/2018" class="archive-year">2018</a>
+        </div>
+        <div class="archives">
+    
+    <article class="archive-article archive-type-post">
+  <div class="archive-article-inner">
+    <header class="archive-article-header">
+      	<div class="article-meta">
+	      	<a href="/2018/01/08/channel/" class="archive-article-date">
+  	<time datetime="2018-01-07T16:00:03.081Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-01-08</time>
+</a>
+        </div>
+    	 
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2018/01/08/channel/">channel</a>
+      <a class="archive-article-title" href="/2018/01/08/channel/">channel</a>
     </h1>
   
 
-        
-        <a href="/2018/01/08/channel/" class="archive-article-date">
-  	<time datetime="2018-01-07T16:00:03.081Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-01-08</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <h2 id="Channel"><a href="#Channel" class="headerlink" title="Channel"></a>Channel</h2><p>本文主要介绍golang语言层面的另外一个特性-channel, channel 是实现CSP并发模型的关键</p>
-<p>Don’t communicat by sharing memory, share memory by communicating</p>
-<ol>
-<li>实现代码</li>
-</ol>
-<p>channel在golang中也是以一种struct存在的，如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">type hchan struct &#123;</div><div class="line">	qcount uint  // 当前缓冲槽中有的item数量</div><div class="line">	datasiz uint //缓冲区大小</div><div class="line">	buf unsafe.Pointer //缓冲区指针</div><div class="line">	elemsize uint16 //数据项大小</div><div class="line">	closed uint32  //指明该channel是否被close </div><div class="line">	elemtype *_type  // 数据项类型</div><div class="line">	sendx uint  //发送索引</div><div class="line">	recvx uint //接收索引</div><div class="line">	recvq waitq //发送队列，如果发送g阻塞那么就会把自己包装成sudog然后放到这里</div><div class="line">	sendq waitq //接收队列，如果接收g阻塞那么就会把自己包装成sudog然后放到这里</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>channel可以分为buffered channel 和 unbuffered channel(具体会在下文介绍)，而对于buffered<br>channel我们可以假想成是一个环形队列。从上面的声明中可以看出 <code>hchan</code><br>主要包含的就是缓冲槽的大小，当前包含item的数量，指向缓冲槽的指针，保存的数据项的大小以及类型，以及为了维护收发功能的发送接收索引，和发送接收队列等</p>
-<p>下面是发送/接收队列的结构声明，队列成员是<code>sudog</code>类型(这个类型到底是啥，下文会提及到)</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">type waitq struct &#123;</div><div class="line">	first *sudoq</div><div class="line">	last *sudog</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>上面简单介绍了下channel在代码中的结构，下面就channel的机制以及实现原理做一个简单的记录，方便日后回顾</p>
-<h3 id="创建channel"><a href="#创建channel" class="headerlink" title="创建channel"></a>创建channel</h3><p>channel分为不带缓冲的channel 和 带缓冲的channel，本质上的区别其实就是datasiz是否大于0</p>
-<p>通常创建channel和map一样使用make方法，如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">channel := make(chan int, 5)</div></pre></td></tr></table></figure>
-<p><code>make</code> 方法可以指定channel的缓冲槽的大小，默认如果不指定的话那么即为0，即创建的是一个unbuffered channel, 或者可以叫同步channel。比如上述代码就是创建了一个缓冲大小为5的channel</p>
-<p>golang内部是通过 <code>makechan</code>函数实现的，我们来看下源码:</p>
-<p><code>src/runtime/chan.go</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">func makechan(t *chantype, size int64) *hchan &#123;</div><div class="line">	//TODO</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>因为受到gc垃圾回收器的限制，而且对于指针类型的channel，考虑到指针类型的大小固定，因此可以单独一次性分配内存。通过上面的方法就返回了一个创建好的channel结构体.</p>
-<h3 id="channel的收发"><a href="#channel的收发" class="headerlink" title="channel的收发"></a>channel的收发</h3><p>当创建好了channel之后，我们就需要通过channel进行数据的接收和发送了。</p>
-<p>首先我们可以认为接收数据/发送数据的都是一个所谓的goroutine，即g。但是必须对channel收发双方进行包装，因为他们要携带数据项，并存储相关状态，此时就延伸出一个新的结构成为 <code>sudog</code></p>
-<p>golang的g:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">type g struct &#123;</div><div class="line">	...</div><div class="line">	param unsage.Pointer //传递唤醒参数,当channel是因为被close的时候，这边param会被设置为nil，当g被唤醒的时候只要检查该成员就可以知道channel是否被close</div><div class="line">	...</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>而将g包装后就变成了sudog，这专门负责处于等待队列队列的g，需要注意的g。g可能需要同时等待多个资源，那么在这些等待等待队列中都会存在sudog，而他们都是代表的同一个g</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">type sudog struct &#123;</div><div class="line">	g *g // 代表的是哪个g</div><div class="line">	elem unsafe.Pointer //数据存储空间指针</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>之前在介绍channel结构实现的时候就提到，channel还得维护发送和接收者等待队列，以及缓冲槽环状队列的索引位置，这些都是在hchan结构体中定义的</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">type hchan struct &#123;</div><div class="line">	qcount uint</div><div class="line">	closed uint32</div><div class="line">	sendx uint</div><div class="line">	recvx uint</div><div class="line">	recvq waitq</div><div class="line">	sendq waitq</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>可以看出发送接收者的缓冲队列就是一个sudog的链表，而sudog也是通过pool的形式来实现的(即二级缓存)</p>
-<p>通过 <code>acquireSudog()</code> 和 <code>releaseSudog</code>来获取和释放一个sudog,<br>通过pool的方式从而能够更快的使用和释放sudog，而不是每次都新创建，提高了效率。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">func acquireSudog() *sudog</div><div class="line"></div><div class="line">func releaseSudog(s *sudog)</div></pre></td></tr></table></figure>
-<p>sched.sudogcache缓存会在垃圾回收执行cleanpools时被清理，但是P本地缓存会被保留</p>
-<h4 id="同步"><a href="#同步" class="headerlink" title="同步"></a>同步</h4><p> 不带缓冲槽的channel即为同步channel，关键就是找到匹配的接收方和发送方，找到则直接拷贝数据；找不到就将自身打包后放入到等待队列，由另一方复制数据并唤醒</p>
-<p> 在同步模式下，channel的作用仅仅是维护发送和接收队列，数据复制与channel无关。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">func chansend1(c *hchan, elem unsafe.Pointer) &#123;</div><div class="line">	chansend(c, elem, true, getcallerpc(unsafe.Pointer(&amp;c)))</div><div class="line">&#125;</div><div class="line"></div><div class="line">func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool &#123;&#125;</div></pre></td></tr></table></figure>
-<p>同步channel在发送的时候会尝试从recvq里面获取一个sudog，如果顺利拿到则说明已经有g在等待接收，直接将数据通过<br><code>send</code>复制过去即可，那如果拿不到则说明当前还没有就绪的receiver，那么就获取一个sudog，将当前调用chansend的goroutine包装成sudog并放入channel的sendq队列里面，等待唤醒。当有就绪的receiver或者channel被close的时候，该sudog被唤醒，然后将之前使用的sudog释放掉即可，因为此时数据已经被receiver处理掉了，所以sender就不需要再做处理了。</p>
-<p>我们再来看下接收者, 编译器会根据不同的调用语法翻译成不同的函数调用</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">// &lt;- chan</div><div class="line">func chanrecv1(c *hchan, elem unsafe.Pointer) &#123;</div><div class="line">	chanrecv(c, elem, true)</div><div class="line">&#125;</div><div class="line"></div><div class="line">// x, ok:= &lt;- chan</div><div class="line">func chanrecv2(c *hchan, elem unsafe.Pointer) (received bool) &#123;</div><div class="line">	_,received = chanrecv(c, elem, true)</div><div class="line">	return</div><div class="line">&#125;</div><div class="line"></div><div class="line">func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, receiverd bool)&#123;]</div></pre></td></tr></table></figure>
-<p>无论是 <code>chanrecv1</code>还是<code>chanrecv2</code>，最后调用的都是<code>chanrecv</code>,</p>
-<p><strong>对于收发双发来说，如果在sendq/recvq队列里存在阻塞的sudog，那么就需要负责唤醒对方阻塞的sudog</strong></p>
-<h4 id="异步"><a href="#异步" class="headerlink" title="异步"></a>异步</h4><p>异步channel主要围绕缓冲槽进行，当有空位时，发送者向槽中复制数据；有数据后，接收者从槽中获取数据，双方都有唤醒排队的另一方继续工作的责任, 其余的原理都和同步类似</p>
-<p>它首先尝试从channel的发送队列里面尝试拿到sudog，如果有的话那就说明当前队列满了，已经导致有sender在进行等待了，那么首先将缓冲槽的sendx索引的值取出，然后再将sender的值存入，同时恰当的修改索引，者就完成了数据的复制，最后还要记得唤醒阻塞的sudog。那如果当前发送队列里面没有sudog的话，就需要直接尝试从channel的缓冲槽里面获取数据,获取到的话就修改相关的索引然后返回，如果仍然获取不到则表示当前还没有数据准备好，因此就需要将自己包装成sudog，然后加入到recvq队列里等待唤醒</p>
-<h4 id="关闭"><a href="#关闭" class="headerlink" title="关闭"></a>关闭</h4><p>关闭操作会将所有排队者唤醒，并通过chan.closed，g.param参数告知由close发出</p>
-<ul>
-<li>向closed channel发送数据的，出发panic</li>
-<li>向closed channel读取数据的，返回零值</li>
-<li>无论收发，nil channel都会阻塞</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">func closechan(c *hchan) &#123;</div><div class="line">	//TODO</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p><code>closechan</code> 其实主要就是三步工作:</p>
-<ul>
-<li>对于所有该channel阻塞的读sudog都设置 <code>g.param = nil</code></li>
-<li>对于所有该channel阻塞的写sudog都设置 <code>g.param = nil</code></li>
-<li>调用goready唤醒所有的g</li>
-</ul>
-<p>被唤醒的g在唤醒之后会检查 <code>param</code> 参数是否为nil，以此来判断channel是否被closed，从而作出处理</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
+        <div class="article-info info-on-right">
+          
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
@@ -249,310 +194,19 @@
 		</ul>
 	</div>
 
-      
+          
 
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2018/01/08/channel/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
+        </div>
+        <div class="clearfix"></div>
+    </header>
   </div>
 </article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
   
-    <article id="post-redis对象类型" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
+  
+    </div></section>
+  
+
     
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/11/24/redis对象类型/">redis对象类型</a>
-    </h1>
-  
-
-        
-        <a href="/2017/11/24/redis对象类型/" class="archive-article-date">
-  	<time datetime="2017-11-23T16:02:55.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-24</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>前面我们介绍了redis用到的所有数据结构，分别为SDS、字典、链表、跳跃表、压缩列表、整数集合。但是redis并没有直接使用这些数据结构保存键值，而是基于这些数据结构又实现了一套对象系统，这个系统包含字符串对象、列表对象、哈希对象、集合对象和有序集合对象五种类型的对象。</p>
-<p>使用对象的优势：</p>
-<p>  redis在执行命令之前，根据对象的类型来判断一个对象是否可以执行给定的命令。另一个好处是，我们可以针对不同的使用场景，为对象设置多种不同的数据结构实现，从而优化对象在不同场景下的使用效率。<br>  除此之外，redis对象系统还基于引用计数技术的内存回收机制，当程序不再使用某个对象的时候，这个对象所占用的内存就会被自动释放。另外，redis还通过引用计数技术实现了对象共享机制，可以在适当的条件下，通过让多个数据库键共享同一个对象来共享内存。<br>  redis的对象还带有访问时间记录信息，该信息可以用于计算数据库键的空转时长，空转时长较大的那些键可能会优先被服务器删除。</p>
-<p> redis中对象的结构：</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">typedef struct redisObject &#123;</div><div class="line">	unsigned type:4;</div><div class="line">	unsigned encoding:4;</div><div class="line">	unsigned lru:LRU_BITS;</div><div class="line">	int refcount;</div><div class="line">	void *ptr;</div><div class="line">&#125; robj;</div></pre></td></tr></table></figure>
-<p> 在上面的结构中，<br>type记录了对象的类型(REDIS_STRING, REDIS_LIST, REDIS_HASH, REDIS_SET, REDIS_ZSET)</p>
-<p>通常数据库键都是为“字符串对象”</p>
-<p>而ptr指针则是指向对象的底层实现数据结构，这些数据结构由对象的encoding属性决定。encoding属性记录了对象所使用的编码，即这个对象使用了什么数据结构作为对象的底层实现可以是如下的其中一个：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">REDIS_ENCODING_INT 			long类型的整数</div><div class="line">REDIS_ENCODING_EMBSTR 		embstr编码的简单动态字符串</div><div class="line">REDIS_ENCODING_RAW  		简单动态字符串</div><div class="line">REDIS_ENCODING_HT 			字典</div><div class="line">REDIS_ENCODING_LINKEDLIST 	双端链表</div><div class="line">REDIS_ENCODING_ZIPLIST 		压缩列表</div><div class="line">REDIS_ENCODING_INTSET 		整数集合</div><div class="line">REDIS_ENCODING_SKIPLIST 	跳跃表和字典</div></pre></td></tr></table></figure>
-<p>上面的就是可能出现的编码格式，每一种类型的对象根据自己的特点(类型，数量大小)都可能会有至少2种不同的编码格式，下面就是每种对象类型可能对应的编码格式：</p>
-<pre><code>REDIS_STRING        REDIS_ENCODING_INT            使用整数值实现的字符串对象
-REDIS_STRING        REDIS_ENCODING_EMBSTR        使用embstr编码的简单动态字符串实现的字符串对象
-REDIS_STRING        REDIS_ENCODING_RAW            使用简单动态字符串实现的字符串对象
-REDIS_LIST        REDIS_ENCODING_ZIPLIST        使用压缩列表实现的列表对象
-REDIS_LIST        REDIS_ENCODING_LINKEDLIST  使用双端链表实现的列表对象
-REDIS_HASH        REDIS_ENCODING_ZIPLIST     使用压缩列表实现的哈希对象
-REDIS_HASH        REDIS_ENCODING_HT           使用字典实现的哈希实现
-REDIS_SET            REDIS_ENCODING_INTSET      使用整数集合实现的集合对象
-REDIS_SET            REDIS_ENCODING_HT            使用字典实现的集合对象
-REDIS_ZSET        REDIS_ENCODING_ZIPLIST        使用压缩列表实现的有序集合对象
-REDIS_ZSET        REDIS_ENCODING_SKIPLIST    使用跳跃表和字典实现的有序集合对象
-</code></pre><p>下面就分别对每种对象类型进行分析</p>
-<h4 id="字符串对象"><a href="#字符串对象" class="headerlink" title="字符串对象"></a>字符串对象</h4><p>字符串对象的编码可以是int, raw或者embstr</p>
-<p><strong>embstr和raw本质上没什么区别，都是使用redisObject 和sds结构来保存数据，但是raw会调用两次内存分配操作来创建redisObject和sds，而embstr只是申请一次，通过创建一段连续的内存空间将redisObject和sds的结构体放在一起，如此一来减少了内存操作的次数，同时这种专门适合短字符的对象能够更好的利用缓存带来的优势</strong></p>
-<p>分三种情况</p>
-<ol>
-<li>如果是long类型能够表示的整数，那就用ENCODING_INT编码</li>
-<li>如果是字符串，长度小于32Byte，那么就用ENCODING_EMBSTR编码</li>
-<li>如果是字符串，长度大于32Byte，那么就用ENCODING_RAW编码</li>
-</ol>
-<h4 id="列表对象"><a href="#列表对象" class="headerlink" title="列表对象"></a>列表对象</h4><p>列表对象的编码可以是ziplist或者linkedlist</p>
-<p>当列表对象同事满足以下两个条件时，列表对象使用ziplist编码：</p>
-<ol>
-<li>列表对象保存的所有字符串元素的长度都小于64字节</li>
-<li>列表对象保存的元素数量小于512个；</li>
-</ol>
-<p>不能满足上述两个条件的列表对象需要使用linkedlist编码</p>
-<h4 id="哈希对象"><a href="#哈希对象" class="headerlink" title="哈希对象"></a>哈希对象</h4><p>哈希对象的编码可以是ziplist或者hashtable</p>
-<p>当哈希对象同时满足以下两个条件时，哈希对象使用ziplist编码：</p>
-<ol>
-<li>哈希对象保存的所有键值对的键和值的字符串长度都小于64字节</li>
-<li>哈希对象保存的键值对的数量小于512个</li>
-</ol>
-<p>不能满足上述两个条件的哈希对象需要使用hashtable编码</p>
-<h4 id="集合对象"><a href="#集合对象" class="headerlink" title="集合对象"></a>集合对象</h4><p>集合对象的编码可以是intset或者hashtable</p>
-<p>当集合对象可以同事满足两个条件时，对象使用intset编码：</p>
-<ol>
-<li>集合对象保存的所有元素都是整数值</li>
-<li>集合对象保存的元素数量不超过512个</li>
-</ol>
-<p>不能满足这两个条件的集合对象需要使用hashtable编码</p>
-<h4 id="有序集合对象"><a href="#有序集合对象" class="headerlink" title="有序集合对象"></a>有序集合对象</h4><p>有序集合对象的编码可以是ziplist或者skiplist</p>
-<p>当有序集合可以同时满足以下两个条件时，对象使用ziplist编码：</p>
-<ol>
-<li>有序集合保存的元素数量小于128个</li>
-<li>有序集合保存的所有元素成员的长度都小于64字节</li>
-</ol>
-<p>不能满足上述条件的有序集合对象使用skiplist编码</p>
-<p>以上就是redis中支持的5种对象类型的底层数据类型实现。</p>
-<p>我们注意到在上面介绍redisObject结构体的时候有个成员 <code>refcount</code>，这个是记录当前对象的引用计数的，可以用来进行内存回收和对象共享</p>
-<p>最后在redisObject结构体种还有一个lru属性，这个属性记录了对象最后一次被命令程序访问的时间，这个属性可以用来计算对象的空转时间。当redis服务器开启maxmemory选项的话，如果服务器占用的内存超过设置的上限值，那么空转时间较长的键会优先被服务器释放，从而回收内存。</p>
-<p><strong>redis会在初始化服务器时，创建10000个字符串对象，包含了0-9999的所有整数值，当服务器需要用到值为0-9999的字符串对象时，就会使用这些共享对象。</strong></p>
-<p>###重点</p>
-<ol>
-<li>redis每种类型的对象至少都有两种编码方式，不同编码可以在不同的使用场景上优化对象的使用效率</li>
-<li>服务器在执行某些命令之前，会先检查给定键的类型能够执行给定的命令，而检查一个键的类型就是检查键的值对象的类型</li>
-<li>redis带有的对象引用计数实现内存回收</li>
-<li>redis共享0-9999的字符串对象</li>
-<li>对象会记录自己最后一次被访问的时间，用于计算对象的空转时间，在内存回收的时候会用到</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/11/24/redis对象类型/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-redis数据结构介绍" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/11/23/redis数据结构介绍/">redis数据结构介绍</a>
-    </h1>
-  
-
-        
-        <a href="/2017/11/23/redis数据结构介绍/" class="archive-article-date">
-  	<time datetime="2017-11-22T16:57:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-23</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>redis在底层实现了6种不同的数据结构，以此作为上层数据类型的底层实现。它们分别为:SDS、链表、跳跃表、字典、整数集合、压缩列表</p>
-<p>下面就分别介绍每种数据结构的定义</p>
-<h4 id="SDS-简单动态字符串-Simple-Dynamic-String"><a href="#SDS-简单动态字符串-Simple-Dynamic-String" class="headerlink" title="SDS 简单动态字符串(Simple Dynamic String)"></a>SDS 简单动态字符串(Simple Dynamic String)</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">struct sdshdr &#123;</div><div class="line">	//SDS保存的字符串的长度，buf数组已经使用的字符的数量</div><div class="line">	int len;</div><div class="line">	//buf数组未使用的字符数量</div><div class="line">	int free;</div><div class="line">	//字节数组，保存字符串</div><div class="line">	char buf[];</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>SDS遵循C字符串的以空字符’\0’结尾，但是这个字符不包含在len属性里面，遵循这一惯例那么SDS可以直接重用一部分C字符串函数库里面的函数。</p>
-<p>SDS和C字符串的对比：</p>
-<p>  要获取C字符串的长度必须遍历整个字符串，而SDS在len属性中记录了长度，时间复杂度是O(1)</p>
-<p>  C字符串容易造成缓冲区溢出。在对字符串进行一些诸如拼接操作的时候，如果目标buf的长度不够那么就容易产生缓冲区溢出，因此程序员必须自己去申请分配必要的长度空间。而SDS在进行修改的时候会先检查SDS的空间是否满足修改所需的要求，因此使用SDS就不需要程序员手动的修改SDS空间大小，也不用担心出现缓冲区溢出的问题。</p>
-<p>  SDS数据结构为字符串预留一部分的未使用空间(类似于STL中的vector)，这些预留空间在下次修改SDS内容的时候会优先使用，减少像C字符串这种每次修改都要进行内存重分配的情况。分配策略是：如果SDS的长度小于1MB那么程序会分配额外相等的空间，也就是len和free属性相等；而如果SDS的内容长度大于1MB那么程序就分配1MB的free空间</p>
-<p><strong>注意，这里所有分配的空间长度都未算上最后的一个空字符，这个是redis自己处理的，所以真正分配的空间大小实际上都是需要加上1Byte的</strong></p>
-<p>对于SDS内容长度减少的情况，空间大小也不会立即被释放掉，因为之后可能会被使用，采用的是惰性释放资源的策略。</p>
-<p>SDS的所有API都是二进制安全的，所有SDS API都是已处理二进制的方式来处理SDS存放在buf数组里的数据。<br>但是由于SDS也是和C字符串一样末尾使用空字符进行结尾，因此也是可以重用一部分的<string.h>库中的函数的。</string.h></p>
-<p>一些SDS支持的API可以查看 <code>redis/src/sds.h</code> 文件</p>
-<h4 id="链表"><a href="#链表" class="headerlink" title="链表"></a>链表</h4><p>链表和链表节点的实现</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">typedef struct listNode &#123;</div><div class="line">	struct listNode *prev;</div><div class="line">	struct listNode *next;</div><div class="line">	void *value;</div><div class="line">&#125;listNode;</div><div class="line"></div><div class="line">typedef struct list &#123;</div><div class="line">	//表头节点</div><div class="line">	listNode *head;</div><div class="line">	//表尾节点</div><div class="line">	listNode *tail;</div><div class="line">	unsigned long len;</div><div class="line">	void *(*dup)(void *ptr);</div><div class="line">	void (*free)(void *ptr);</div><div class="line">	int (*match)(void *ptr, void *key);</div><div class="line">&#125;list;</div></pre></td></tr></table></figure>
-<p>多个listNode结构组成链表，而list结构可以持有该链表，里面包含了链表头尾，节点的数量，以及节点所需的类型特定函数，这为支持多态链表做好准备。</p>
-<p>链表支持的API可以查看 <code>redis/src/adlist.h</code>进行查看</p>
-<h4 id="字典"><a href="#字典" class="headerlink" title="字典"></a>字典</h4><p>redis的字典使用哈希表作为底层实现，</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">typedef struct dictht &#123;</div><div class="line">	//哈希表数组</div><div class="line">	dictEntry **table;</div><div class="line">	//哈希表大小</div><div class="line">	unsigned long size;</div><div class="line">	//大小掩码，用于计算哈希索引</div><div class="line">	unsigned long sizemask;</div><div class="line">	//已有的节点数量</div><div class="line">	unsigned long used;</div><div class="line">&#125; dictht;</div><div class="line"></div><div class="line">typedef struct dictEntry &#123;</div><div class="line">	//键</div><div class="line">	void *key;</div><div class="line">	//值</div><div class="line">	union &#123;</div><div class="line">		void *val;</div><div class="line">		uint64_t u64;</div><div class="line">		int64_t s64;</div><div class="line">	&#125; v;</div><div class="line">	struct dictEntry *next;</div><div class="line">&#125; dictEntry;</div></pre></td></tr></table></figure>
-<p>上面的代码中<code>dictht</code>实际上就是一个哈希表，table是一个保存dictEntry指针的数组，size是数组的大小，sizemask是用来计算数组索引的掩码，而used则表示当前数组已被使用的数量。</p>
-<p>而对于table中的元素指向的是dictEntry结构，这就是一个哈希节点，里面才是保存真正的键值对，key保存了键，而值是一个union结构，可以是一个指针，也可以是uint64_t整数或者int64_t整数。如果有相同的哈希节点被索引到table数组的同一个索引位置的话，那么这些节点就通过next指针链接起来，以链地址法来解决哈希的冲突问题。</p>
-<p>而redis的字典的结构则为:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">typedef struct dict &#123;</div><div class="line">	//类型特定函数</div><div class="line">	dictType *type;</div><div class="line">	//私有数据</div><div class="line">	void *privdata;</div><div class="line">	//哈希表</div><div class="line">	dictht ht[2];</div><div class="line">	//rehash索引</div><div class="line">	//当rehash不在进行时，值为-1</div><div class="line">	int trehashidx;</div><div class="line">&#125; dict;</div></pre></td></tr></table></figure>
-<p>type和privdata属性是针对不同类型的键值对，为创建多态字典设置的。type属性是一个指向dictType结构的指针，每个dictType结构保存了一簇用于操作特定类型键值对的函数，redis会为用途不同的字典设置不同的类型特定函数；而privdata属性则保存了需要传给那些类型特定函数的可选参数。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">typedef struct dictType &#123;</div><div class="line">	unsigned int (*hashFunction)(const void *key);</div><div class="line">	void *(*keyDup)(void *privdata, const void *key);</div><div class="line">	void *(*valDup)(void *privdata, const void *obj);</div><div class="line">	int (*keyCompare) (void *privdata, const void *key1, const void *key2);</div><div class="line">	void (*keyDestructior)(void *privdata, void *key);</div><div class="line">	void (*valDestructor)(void *privdata, void *obj);</div><div class="line">&#125;dictType;</div></pre></td></tr></table></figure>
-<p>ht属性是一个包含两个项的数组，数组中的每个项都是一个dictht哈希表，通常字典都是使用dictht[0],ht[1]只会在对ht[0]进行rehash的时候使用。</p>
-<p>rehashidx记录了当前rehash的进度，如果为-1则表示当前不在rehash。</p>
-<p>普通的一个dict大致结构如下图所示:</p>
-<p><img src="http://oo78a77tv.bkt.clouddn.com/17-11-22/88176795.jpg" alt=""></p>
-<p>程序要插入新的键值对的时候，就会根据key的hashFunction产生has值，然后计算出在tables中应该存放的index。如果有多个键值对产生的index是一样的，通过链地址法来解决，即通过把所有的dictEntry通过next指针串联起来。</p>
-<p>下面我们主要说下rehash的过程:<br>哈希表的键值对会随着使用越来越多，为了让哈希表的负载因子维持在一个合理的范围，就需要在哈希表的键值对数量太多或者太少的时候进行相应的扩展和收缩。这就是rehash。但是我们要知道通常redis保存大量的数据，那么在做rehash的时候就需要很长的时间，在这段时间内可能会导致redis停止服务。因此为了避免rehash对服务器性能造成影响，服务器不是一次性将ht[0]里面的所有键值对全部rehash到ht[1]，而是分多次、渐进式地将ht[0]里面的键值对慢慢地rehash到[1]中。详细步骤如下：</p>
-<ol>
-<li>根据一定策略为ht[1]分配空间，让字典同时持有ht[0]和ht[1]两个哈希表，(一定策略是指：如果是扩展哈希表，那么就找到第一个大于等于used*2的2的n次方的整数，如果是收缩的则是第一个大于等于used的2的n次方的整数)</li>
-<li>在字典中维持一个字典计算器变量rehashidx,并将它的值设置为0，表示rehash工作正式开始</li>
-<li>在rehash期间，每次对字典的CRUD操作，程序除了执行指定的命令操作外，还会顺带将ht[0]在当前rehasidx索引上的键值对rehash到ht[1],这个过程完成后，rehashidx自增1</li>
-<li>随着字典的不断执行，最终ht[0]上的所有键值对都会被rehash到ht[1]上，然后再将rehashidx设置为-1，表示rehash操作完成</li>
-</ol>
-<p>这种做法的好处就是采取分而治之的方式，将rehash的工作量分摊到每次CRUD的操作上。</p>
-<p>字典是哈希键的底层实现</p>
-<h4 id="跳跃表"><a href="#跳跃表" class="headerlink" title="跳跃表"></a>跳跃表</h4><p>跳跃表支持平均O(logn)、最坏O(N)复杂度的节点查找，还可以通过顺序性操作来批量处理节点。</p>
-<p><strong>Redis使用跳跃表作为有序集合键的底层实现之一。</strong> 如果一个有序集合包含的元素数量比较多，又或者有序集合中元素的成员是比较长的字符串的时候，redis就会使用跳跃表来作为有序集合键的底层实现。</p>
-<p>Redis只在两个地方用到了跳跃表，一个是实现有序集合键，另一个是在集群节点中用作内部数据结构。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">typedef struct zskiplistNode &#123;</div><div class="line">	robj *obj;</div><div class="line">	double score;</div><div class="line">	struct zskipNode *backward;</div><div class="line">	struct zskipLevel &#123;</div><div class="line">		struct zskipNode *forward;</div><div class="line">		unsigned int span;</div><div class="line">	&#125; level[];</div><div class="line">&#125; zskiplistNode;</div><div class="line"></div><div class="line">typedef struct zskiplist &#123;</div><div class="line">	struct zskipNode *header, *tail;</div><div class="line">	unsigned long length;</div><div class="line">	int level;</div><div class="line">&#125; zskiplist;</div></pre></td></tr></table></figure>
-<p>比如可以看下图:</p>
-<p><img src="http://oo78a77tv.bkt.clouddn.com/17-11-22/69337060.jpg" alt=""></p>
-<p>图中最左边的就是zskiplist结构体，右边的四个就是zskiplistNode结构，当然第一个是表头节点，不存储实际的值，这个图中一共最多有5层，每一层都是通过zskiplistNode.level来表示的，它有指向下一个节点的指针和当前跨度来组成。每个zskiplistNode还保存有backward指针指向前一个节点，以及score成员。</p>
-<p>一般来说，层次越多访问其他节点的速度就越快。</p>
-<h3 id="整数集合"><a href="#整数集合" class="headerlink" title="整数集合"></a>整数集合</h3><p>整数集合可以保存类型为uint16_t, int32_t, int64_t的整数值。</p>
-<p><strong>整数集合是集合键的底层实现之一</strong> 当一个集合只包含整数值元素，并且这个集合的元素数量不多时，redis就会使用整数集合作为集合键的底层实现。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">typedef struct intset &#123;</div><div class="line">	uint32_t encoding;</div><div class="line">	uint32_t length;</div><div class="line">	int8_t contents[];</div><div class="line">&#125; intset;</div></pre></td></tr></table></figure>
-<p>contents数组的真正类型取决于encoding属性的值</p>
-<ol>
-<li>如果encoding属性的值为INTSET_ENC_INT16的话 那么contents就是一个int16_t类型的数组</li>
-<li>如果encoding属性的值为INTSET_ENC_INT32的话 那么contents就是一个int32_t类型的数组</li>
-<li>如果encoding属性的值为INTSET_ENC_INT64的话 那么contents就是一个int64_t类型的数组</li>
-</ol>
-<p>每当我们要将一个新元素添加到整数集合里面，并且新元素的类型比整数集合现有的类型要长的时候，整数集合需要先进行升级，然后才能将新元素添加到整数集合里面。</p>
-<p>提升灵活性，节约内存。可以同时支持三种类型的数据类型存储，而又可以确保升级只是在有需要的时候进行。</p>
-<h4 id="压缩列表"><a href="#压缩列表" class="headerlink" title="压缩列表"></a>压缩列表</h4><p><strong>压缩列表时列表键和哈希键的底层实现之一</strong>。当一个列表键只包含少量列表项，并且每个列表项要么就是小整数值，要么就是长度比较短的字符串，那么redis就会使用压缩列表做列表键的底层实现。</p>
-<p>一个压缩列表可以包含人意多个节点, 每个节点可以保存一个字节数组或者一个整数值</p>
-<p>ziplist的结构如下：</p>
-<p>   zlbytes | zltail | zllen | entry1 | entry2 | … | entryN | zlend</p>
-<p>而对于每个entry的结构:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">typedef struct zlentry &#123;</div><div class="line">	unsigned int prevrawlensize, prevrawlen; //前置节点的长度，编码prevrawsize所需的字节大小</div><div class="line">	unsigned int lensize, len; //当前节点的长度，编码len长度的字节大小</div><div class="line">	unsigned int headersize; //当前节点header大小，等于prevrawlensize+lensize</div><div class="line">	unsigned char encoding; //当前节点值所使用的编码类型</div><div class="line">	unsigned char *p; //指向当前节点的指针</div><div class="line">&#125; zlentry;</div></pre></td></tr></table></figure>
-<p>对于压缩列表 ，会存在 “连锁更新”的问题</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">redis</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/11/23/redis数据结构介绍/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-  
 
 
           </div>
@@ -574,10 +228,10 @@ REDIS_ZSET        REDIS_ENCODING_SKIPLIST    使用跳跃表和字典实现的�
     <script>
 	var yiliaConfig = {
 		mathjax: false,
-		isHome: true,
+		isHome: false,
 		isPost: false,
 		isArchive: false,
-		isTag: false,
+		isTag: true,
 		isCategory: false,
 		open_in_new: false,
 		toc_hide_index: true,
